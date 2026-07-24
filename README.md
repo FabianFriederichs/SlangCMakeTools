@@ -1,4 +1,4 @@
-# slang-cmake-targets
+# SlangCMakeTools
 
 Target-oriented CMake integration for offline
 [Slang](https://shader-slang.org/) shader compilation.
