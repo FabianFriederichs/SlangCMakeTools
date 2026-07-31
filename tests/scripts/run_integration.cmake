@@ -30,6 +30,7 @@ execute_process(
         -B "${case_build}"
         -G Ninja
         "-DCMAKE_MAKE_PROGRAM=${NINJA_EXECUTABLE}"
+        -DCMAKE_BUILD_TYPE=Debug
         "-DSLANG_SHADER_TOOLS_DIR=${SLANG_SHADER_TOOLS_DIR}"
         "-DSLANGC_EXECUTABLE=${SLANGC_EXECUTABLE}"
         "-DCORE_MODE=${CORE_MODE}"
@@ -56,6 +57,25 @@ execute_process(
 if(NOT initial_build_result EQUAL 0)
     message(FATAL_ERROR
         "Initial build failed:\n${initial_build_output}\n${initial_build_error}"
+    )
+endif()
+
+foreach(expected_flag IN ITEMS
+    TEST_GLOBAL_FLAG=1
+    TEST_DEBUG_FLAG=1
+    TEST_TARGET_FLAG=1
+)
+    if(NOT initial_build_output MATCHES "${expected_flag}")
+        message(FATAL_ERROR
+            "Expected Slang flag '${expected_flag}' was not used:\n"
+            "${initial_build_output}"
+        )
+    endif()
+endforeach()
+if(initial_build_output MATCHES "TEST_RELEASE_FLAG=1")
+    message(FATAL_ERROR
+        "Release-only Slang flags were used by a Debug build:\n"
+        "${initial_build_output}"
     )
 endif()
 

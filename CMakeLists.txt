@@ -11,6 +11,7 @@ option(
 )
 
 list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(SlangShaderTools)
 
 if(SLANG_CMAKE_TARGETS_BUILD_EXAMPLES)
     add_subdirectory(examples/basic)

@@ -5,6 +5,24 @@ if(CMAKE_VERSION VERSION_LESS 3.30)
     message(FATAL_ERROR "SlangShaderTools requires CMake 3.30 or newer.")
 endif()
 
+# Project-wide Slang flags. SLANG_FLAGS is always applied; the configuration-
+# specific variables are selected through CMake's active build configuration.
+set(SLANG_FLAGS "" CACHE STRING
+    "Flags used by Slang for every build configuration"
+)
+set(SLANG_FLAGS_DEBUG "-O0 -g" CACHE STRING
+    "Slang flags used for Debug builds"
+)
+set(SLANG_FLAGS_RELEASE "-O2 -g0" CACHE STRING
+    "Slang flags used for Release builds"
+)
+set(SLANG_FLAGS_RELWITHDEBINFO "-O2 -g" CACHE STRING
+    "Slang flags used for RelWithDebInfo builds"
+)
+set(SLANG_FLAGS_MINSIZEREL "-O1 -g0" CACHE STRING
+    "Slang flags used for MinSizeRel builds"
+)
+
 # Appends values to a list while preserving order and removing duplicates.
 function(_slang_list_append_unique list_variable)
     set(result "${${list_variable}}")
@@ -262,6 +280,37 @@ function(slang_target_compile_options target_name)
             PUBLIC ${SL_PUBLIC}
             INTERFACE ${SL_INTERFACE}
     )
+endfunction()
+
+# Collects fixed project-wide flags and configuration-specific flags. Custom
+# configurations are supported by defining SLANG_FLAGS_<UPPERCASE_CONFIG>.
+function(_slang_collect_global_compile_options output_variable)
+    separate_arguments(compile_options NATIVE_COMMAND "${SLANG_FLAGS}")
+    set(configurations Debug Release RelWithDebInfo MinSizeRel)
+
+    if(CMAKE_CONFIGURATION_TYPES)
+        list(APPEND configurations ${CMAKE_CONFIGURATION_TYPES})
+    elseif(CMAKE_BUILD_TYPE)
+        list(APPEND configurations "${CMAKE_BUILD_TYPE}")
+    endif()
+    list(REMOVE_DUPLICATES configurations)
+
+    foreach(configuration IN LISTS configurations)
+        string(TOUPPER "${configuration}" uppercase_configuration)
+        set(flags_variable "SLANG_FLAGS_${uppercase_configuration}")
+        if(DEFINED ${flags_variable} AND NOT "${${flags_variable}}" STREQUAL "")
+            separate_arguments(configuration_compile_options
+                NATIVE_COMMAND "${${flags_variable}}"
+            )
+            foreach(compile_option IN LISTS configuration_compile_options)
+                list(APPEND compile_options
+                    "$<$<CONFIG:${configuration}>:${compile_option}>"
+                )
+            endforeach()
+        endif()
+    endforeach()
+
+    set(${output_variable} "${compile_options}" PARENT_SCOPE)
 endfunction()
 
 # Appends capabilities to a target's SLANG_CAPABILITIES property.
@@ -663,6 +712,8 @@ function(add_slang_module target_name)
     foreach(dep IN LISTS MOD_PUBLIC_DEPENDENCIES MOD_PRIVATE_DEPENDENCIES)
         list(APPEND mod_compile_options "$<$<BOOL:$<TARGET_PROPERTY:${dep},INTERFACE_SLANG_COMPILE_OPTIONS>>:$<JOIN:$<TARGET_PROPERTY:${dep},INTERFACE_SLANG_COMPILE_OPTIONS>,;>>")
     endforeach()
+    _slang_collect_global_compile_options(slang_global_compile_options)
+    list(PREPEND mod_compile_options ${slang_global_compile_options})
     # Remove duplicates
     set(mod_compile_options "$<REMOVE_DUPLICATES:${mod_compile_options}>")
     # Add capabilities from dependencies (TARGET_PROPERTY on INTERFACE_SLANG_CAPABILITIES with generator expression from public and private dependencies)
@@ -889,6 +940,8 @@ function(add_slang_shader target_name output_dir)
     foreach(dep IN LISTS SH_DEPENDENCIES)
         list(APPEND sh_compile_options "$<$<BOOL:$<TARGET_PROPERTY:${dep},INTERFACE_SLANG_COMPILE_OPTIONS>>:$<JOIN:$<TARGET_PROPERTY:${dep},INTERFACE_SLANG_COMPILE_OPTIONS>,;>>")
     endforeach()
+    _slang_collect_global_compile_options(slang_global_compile_options)
+    list(PREPEND sh_compile_options ${slang_global_compile_options})
     # Remove duplicates
     set(sh_compile_options "$<REMOVE_DUPLICATES:${sh_compile_options}>")
     # ---- Capabilities ----

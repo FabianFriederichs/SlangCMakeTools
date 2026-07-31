@@ -23,7 +23,7 @@ Make `cmake/SlangShaderTools.cmake` available through `CMAKE_MODULE_PATH`, then
 include it:
 
 ```cmake
-list(APPEND CMAKE_MODULE_PATH "/path/to/slang-cmake-targets/cmake")
+list(APPEND CMAKE_MODULE_PATH "/path/to/CMakeSlangTools/cmake")
 include(SlangShaderTools)
 ```
 
@@ -96,6 +96,78 @@ The shader source uses the same import in either module mode:
 ```slang
 import render.core;
 ```
+
+## Configuring compile options
+
+Use `COMPILE_OPTIONS` for flags that belong to one shader and should apply in
+every build configuration:
+
+```cmake
+add_slang_shader(
+    pathtracer_shader
+    "${CMAKE_CURRENT_BINARY_DIR}/shaders"
+    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/shaders/pathtracer.slang"
+    COMPILE_OPTIONS
+        -matrix-layout-row-major
+        -Werror
+)
+```
+
+Options can also be appended after declaring a target:
+
+```cmake
+slang_target_compile_options(pathtracer_shader
+    PRIVATE
+        -matrix-layout-row-major
+        -Werror
+)
+```
+
+`PRIVATE` applies to the target itself, `PUBLIC` applies to the target and its
+consumers, and `INTERFACE` applies only to consumers. Module declarations also
+accept `PRIVATE_COMPILE_OPTIONS`, `PUBLIC_COMPILE_OPTIONS`, and
+`INTERFACE_COMPILE_OPTIONS` directly.
+
+For project-wide flags, `SLANG_FLAGS` is applied to every module and shader
+compilation regardless of the build configuration. Configuration-specific
+flags use `SLANG_FLAGS_<UPPERCASE_CONFIG>`. The built-in defaults are:
+
+| Variable | Default |
+| --- | --- |
+| `SLANG_FLAGS` | empty |
+| `SLANG_FLAGS_DEBUG` | `-O0 -g` |
+| `SLANG_FLAGS_RELEASE` | `-O2 -g0` |
+| `SLANG_FLAGS_RELWITHDEBINFO` | `-O2 -g` |
+| `SLANG_FLAGS_MINSIZEREL` | `-O1 -g0` |
+
+They can be set in a preset, on the configure command line, or before targets
+are declared:
+
+```bash
+cmake -S . -B build \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DSLANG_FLAGS="-matrix-layout-row-major -Werror" \
+    -DSLANG_FLAGS_DEBUG="-O0 -g"
+```
+
+```cmake
+set(SLANG_FLAGS "-matrix-layout-row-major -Werror")
+set(SLANG_FLAGS_DEBUG "-O0 -g")
+```
+
+Single-config generators discover custom configurations through
+`CMAKE_BUILD_TYPE`; multi-config generators use `CMAKE_CONFIGURATION_TYPES`.
+The actual selection is performed with `$<CONFIG:...>` generator expressions,
+so each configuration receives only its own flags. A custom configuration can
+provide a correspondingly named variable:
+
+```cmake
+set(CMAKE_BUILD_TYPE Profile)
+set(SLANG_FLAGS_PROFILE "-O2 -g")
+```
+
+Flag variables are shell-style command strings. Quote the complete value when
+passing multiple flags through `-D`.
 
 ## Staging a shader
 

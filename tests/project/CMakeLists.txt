@@ -15,6 +15,12 @@ endforeach()
 list(APPEND CMAKE_MODULE_PATH "${SLANG_SHADER_TOOLS_DIR}")
 include(SlangShaderTools)
 
+# Exercise fixed global flags, configuration-specific flags, and exclusion of
+# flags belonging to an inactive configuration.
+set(SLANG_FLAGS "-DTEST_GLOBAL_FLAG=1")
+set(SLANG_FLAGS_DEBUG "-DTEST_DEBUG_FLAG=1")
+set(SLANG_FLAGS_RELEASE "-DTEST_RELEASE_FLAG=1")
+
 set(module_output_dir "${CMAKE_CURRENT_BINARY_DIR}/compiled modules")
 
 add_slang_module(
@@ -46,6 +52,8 @@ add_slang_shader(
         "${CMAKE_CURRENT_SOURCE_DIR}/shaders/integration shader.slang"
     DEPENDENCIES
         test_bridge
+    COMPILE_OPTIONS
+        -DTEST_TARGET_FLAG=1
 )
 
 add_executable(integration_consumer main.cpp)

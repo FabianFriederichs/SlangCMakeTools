@@ -9,6 +9,10 @@ endif()
 
 include(SlangShaderTools)
 
+# Fixed project-wide flags are combined with the active configuration's
+# SLANG_FLAGS_<UPPERCASE_CONFIG> value for every module and shader compilation.
+string(APPEND SLANG_FLAGS " -matrix-layout-row-major")
+
 set(EXAMPLE_CORE_MODE SOURCE CACHE STRING "SOURCE or BINARY")
 set_property(CACHE EXAMPLE_CORE_MODE PROPERTY STRINGS SOURCE BINARY)
 
@@ -30,4 +34,12 @@ add_slang_shader(
     DEPENDENCIES
         example_core
     PROFILE spirv_1_5
+)
+
+# Target-scoped options are unconditional unless they contain a generator
+# expression. PRIVATE affects only this shader; PUBLIC and INTERFACE options on
+# module targets can propagate to consumers.
+slang_target_compile_options(example_shader
+    PRIVATE
+        -DEXAMPLE_SHADER=1
 )
